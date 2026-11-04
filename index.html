@@ -1,0 +1,168 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>토크닥터 - 기계 동량 계산기</title>
+    <link rel="manifest" href="data:application/json;base64,ewogICJuYW1lIjogIlRvcnF1ZURvY3RvciIsCiAgInNob3J0X25hbWUiOiAiVG9ycXVlRG9jdG9yIiwKICAic3RhcnRfdXJsIjogIi4iLAogICJkaXNwbGF5IjogInN0YW5kYWxvbmUiLAogICJ0aGVtZV9jb2xvciI6ICIjZTY3ZTIyIgp9">
+    <style>
+        :root { --primary: #d35400; --accent: #e67e22; --danger: #c0392b; --bg: #fdf6ec; }
+        body { font-family: sans-serif; background-color: var(--bg); margin: 0; padding: 20px; display: flex; justify-content: center; }
+        .container { width: 100%; max-width: 600px; background: white; padding: 25px; border-radius: 12px; box-shadow: 0 4px 15px rgba(0,0,0,0.1); }
+        h2 { text-align: center; color: var(--primary); margin-bottom: 20px; }
+        .form-group { margin-bottom: 12px; }
+        label { display: block; margin-bottom: 5px; font-weight: bold; font-size: 0.9em; }
+        input { width: 100%; padding: 10px; border: 1px solid #ccc; border-radius: 6px; box-sizing: border-box; }
+        .btn-group { display: flex; gap: 10px; margin-top: 15px; }
+        button { flex: 1; padding: 12px; border: none; border-radius: 6px; cursor: pointer; font-weight: bold; }
+        .btn-calc { background: var(--accent); color: white; }
+        .btn-manual { background: #7f8c8d; color: white; }
+        .result-box { background: #fef5ed; padding: 15px; border-radius: 6px; margin-top: 15px; border-left: 5px solid var(--accent); display: none; }
+        .gear-list { margin-top: 25px; }
+        .gear-item { display: flex; justify-content: space-between; align-items: center; padding: 12px; border: 1px solid #ddd; border-radius: 6px; margin-bottom: 10px; background: #fff; }
+        .btn-delete { background: var(--danger); color: white; border: none; padding: 6px 12px; border-radius: 4px; cursor: pointer; }
+        .modal { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); justify-content: center; align-items: center; }
+        .modal-content { background: white; padding: 20px; border-radius: 8px; max-width: 400px; width: 90%; }
+        .close-btn { float: right; cursor: pointer; font-weight: bold; }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <h2>⚙️ 토크닥터 (TorqueDoctor)</h2>
+    
+    <div class="form-group">
+        <label for="mechName">구동 매커니즘 명칭</label>
+        <input type="text" id="mechName" placeholder="예: EV 감속기 기어 세트">
+    </div>
+    <div class="form-group">
+        <label for="driverTeeth">구동 기어 잇수 (N1)</label>
+        <input type="number" id="driverTeeth" placeholder="예: 12">
+    </div>
+    <div class="form-group">
+        <label for="drivenTeeth">피동 기어 잇수 (N2)</label>
+        <input type="number" id="drivenTeeth" placeholder="예: 48">
+    </div>
+    <div class="form-group">
+        <label for="inputTorque">입력 토크 (N·m)</label>
+        <input type="number" id="inputTorque" step="0.1" placeholder="예: 2.5">
+    </div>
+    <div class="form-group">
+        <label for="inputRPM">입력 회전수 (RPM)</label>
+        <input type="number" id="inputRPM" placeholder="예: 3000">
+    </div>
+
+    <div class="btn-group">
+        <button class="btn-calc" onclick="calculateAndSave()">동량 산출 & 저장</button>
+        <button class="btn-manual" onclick="toggleModal(true)">사용 방법</button>
+    </div>
+
+    <div class="result-box" id="resultBox"></div>
+    <div class="gear-list" id="gearList">데이터 불러오는 중...</div>
+</div>
+
+<div class="modal" id="manualModal">
+    <div class="modal-content">
+        <span class="close-btn" onclick="toggleModal(false)">&times;</span>
+        <h3>📖 토크닥터 사용 방법</h3>
+        <p>1. <strong>설치</strong>: 모바일 브라우저 메뉴에서 [홈 화면에 추가]로 PWA 앱을 설치합니다.</p>
+        <p>2. <strong>변속 연산</strong>: 기어 잇수(N1, N2)와 모터 사양(입력 토크, RPM)을 입력하고 [동량 산출]을 누릅니다.</p>
+        <p>3. <strong>기계적 이득 분석</strong>: 기어비(i), 최종 출력 토크, 변속 RPM을 실시간 산출하여 구글 시트에 기록합니다.</p>
+        <p>4. <strong>관리</strong>: 구동계 목록에서 필요 없는 항목을 [삭제]합니다.</p>
+    </div>
+</div>
+
+<script>
+    document.addEventListener("DOMContentLoaded", function() {
+        if (typeof google !== 'undefined' && google.script) {
+            google.script.run.withSuccessHandler(renderGears).getGears();
+        } else {
+            loadLocalGears();
+        }
+    });
+
+    function calculateAndSave() {
+        const mechName = document.getElementById("mechName").value;
+        const n1 = parseFloat(document.getElementById("driverTeeth").value);
+        const n2 = parseFloat(document.getElementById("drivenTeeth").value);
+        const t1 = parseFloat(document.getElementById("inputTorque").value);
+        const rpm1 = parseFloat(document.getElementById("inputRPM").value);
+
+        if (!mechName || isNaN(n1) || isNaN(n2) || isNaN(t1) || isNaN(rpm1) || n1 <= 0) {
+            alert("모든 수치를 정확히 입력해주세요.");
+            return;
+        }
+
+        // 기어비 i = N2 / N1
+        const gearRatio = (n2 / n1).toFixed(2);
+        // 출력 토크 T2 = T1 * (N2 / N1)
+        const outputTorque = (t1 * (n2 / n1)).toFixed(2);
+        // 출력 회전수 RPM2 = RPM1 / (N2 / N1)
+        const outputRPM = Math.round(rpm1 / (n2 / n1));
+
+        document.getElementById("resultBox").style.display = "block";
+        document.getElementById("resultBox").innerHTML = 
+            `<strong>[구동 동량 산출 결과]</strong><br>` +
+            `• 기어 변속비: <strong>${gearRatio} : 1</strong><br>` +
+            `• 증폭 출력 토크: <strong>${outputTorque} N·m</strong><br>` +
+            `• 감속 회전수: <strong>${outputRPM} RPM</strong>`;
+
+        const gearData = {
+            id: Date.now(),
+            mechName: mechName,
+            gearRatio: gearRatio + ":1",
+            outputTorque: outputTorque + " N·m",
+            outputRPM: outputRPM + " RPM"
+        };
+
+        if (typeof google !== 'undefined' && google.script) {
+            google.script.run.withSuccessHandler(renderGears).addGear(gearData);
+        } else {
+            let gears = JSON.parse(localStorage.getItem("gears") || "[]");
+            gears.push(gearData);
+            localStorage.setItem("gears", JSON.stringify(gears));
+            renderGears(gears);
+        }
+    }
+
+    function deleteGear(id) {
+        if (typeof google !== 'undefined' && google.script) {
+            google.script.run.withSuccessHandler(renderGears).deleteGear(id);
+        } else {
+            let gears = JSON.parse(localStorage.getItem("gears") || "[]").filter(g => g.id !== id);
+            localStorage.setItem("gears", JSON.stringify(gears));
+            renderGears(gears);
+        }
+    }
+
+    function loadLocalGears() {
+        renderGears(JSON.parse(localStorage.getItem("gears") || "[]"));
+    }
+
+    function renderGears(gears) {
+        const list = document.getElementById("gearList");
+        list.innerHTML = "";
+        if (!gears || gears.length === 0) {
+            list.innerHTML = "<p style='text-align:center;'>저장된 기어 동량 데이터가 없습니다.</p>";
+            return;
+        }
+        gears.forEach(g => {
+            const item = document.createElement("div");
+            item.className = "gear-item";
+            item.innerHTML = `
+                <div>
+                    <strong>[${g.mechName}] (비율 ${g.gearRatio})</strong><br>
+                    <small>토크: ${g.outputTorque} | 회전수: ${g.outputRPM}</small>
+                </div>
+                <button class="btn-delete" onclick="deleteGear(${g.id})">삭제</button>
+            `;
+            list.appendChild(item);
+        });
+    }
+
+    function toggleModal(show) {
+        document.getElementById("manualModal").style.display = show ? "flex" : "none";
+    }
+</script>
+</body>
+</html>
