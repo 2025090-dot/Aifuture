@@ -3,72 +3,198 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>토크닥터 - 기계 동량 계산기</title>
+    <title>토크닥터 - 기계 동량 & 기어비 계산기</title>
+    <!-- Tailwind CSS CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
     <link rel="manifest" href="data:application/json;base64,ewogICJuYW1lIjogIlRvcnF1ZURvY3RvciIsCiAgInNob3J0X25hbWUiOiAiVG9ycXVlRG9jdG9yIiwKICAic3RhcnRfdXJsIjogIi4iLAogICJkaXNwbGF5IjogInN0YW5kYWxvbmUiLAogICJ0aGVtZV9jb2xvciI6ICIjZTY3ZTIyIgp9">
     <style>
-        :root { --primary: #d35400; --accent: #e67e22; --danger: #c0392b; --bg: #fdf6ec; }
-        body { font-family: sans-serif; background-color: var(--bg); margin: 0; padding: 20px; display: flex; justify-content: center; }
-        .container { width: 100%; max-width: 600px; background: white; padding: 25px; border-radius: 12px; box-shadow: 0 4px 15px rgba(0,0,0,0.1); }
-        h2 { text-align: center; color: var(--primary); margin-bottom: 20px; }
-        .form-group { margin-bottom: 12px; }
-        label { display: block; margin-bottom: 5px; font-weight: bold; font-size: 0.9em; }
-        input { width: 100%; padding: 10px; border: 1px solid #ccc; border-radius: 6px; box-sizing: border-box; }
-        .btn-group { display: flex; gap: 10px; margin-top: 15px; }
-        button { flex: 1; padding: 12px; border: none; border-radius: 6px; cursor: pointer; font-weight: bold; }
-        .btn-calc { background: var(--accent); color: white; }
-        .btn-manual { background: #7f8c8d; color: white; }
-        .result-box { background: #fef5ed; padding: 15px; border-radius: 6px; margin-top: 15px; border-left: 5px solid var(--accent); display: none; }
-        .gear-list { margin-top: 25px; }
-        .gear-item { display: flex; justify-content: space-between; align-items: center; padding: 12px; border: 1px solid #ddd; border-radius: 6px; margin-bottom: 10px; background: #fff; }
-        .btn-delete { background: var(--danger); color: white; border: none; padding: 6px 12px; border-radius: 4px; cursor: pointer; }
-        .modal { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); justify-content: center; align-items: center; }
-        .modal-content { background: white; padding: 20px; border-radius: 8px; max-width: 400px; width: 90%; }
-        .close-btn { float: right; cursor: pointer; font-weight: bold; }
+        @keyframes spin-cw { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
+        @keyframes spin-ccw { from { transform: rotate(0deg); } to { transform: rotate(-360deg); } }
+        .gear-driver { transform-origin: 60px 60px; animation: spin-cw var(--driver-speed, 3s) linear infinite; }
+        .gear-driven { transform-origin: 155px 60px; animation: spin-ccw var(--driven-speed, 6s) linear infinite; }
+        .modal-body { max-height: 75vh; overflow-y: auto; }
     </style>
 </head>
-<body>
+<body class="bg-slate-100 text-slate-800 min-h-screen p-4 flex justify-center items-start">
 
-<div class="container">
-    <h2>⚙️ 토크닥터 (TorqueDoctor)</h2>
-    
-    <div class="form-group">
-        <label for="mechName">구동 매커니즘 명칭</label>
-        <input type="text" id="mechName" placeholder="예: EV 감속기 기어 세트">
-    </div>
-    <div class="form-group">
-        <label for="driverTeeth">구동 기어 잇수 (N1)</label>
-        <input type="number" id="driverTeeth" placeholder="예: 12">
-    </div>
-    <div class="form-group">
-        <label for="drivenTeeth">피동 기어 잇수 (N2)</label>
-        <input type="number" id="drivenTeeth" placeholder="예: 48">
-    </div>
-    <div class="form-group">
-        <label for="inputTorque">입력 토크 (N·m)</label>
-        <input type="number" id="inputTorque" step="0.1" placeholder="예: 2.5">
-    </div>
-    <div class="form-group">
-        <label for="inputRPM">입력 회전수 (RPM)</label>
-        <input type="number" id="inputRPM" placeholder="예: 3000">
+<div class="w-full max-w-2xl bg-white rounded-2xl shadow-xl border border-slate-200 p-6 my-4">
+    <!-- 헤더 -->
+    <div class="text-center mb-6 border-b pb-4 border-slate-100">
+        <h1 class="text-2xl font-black text-amber-600 flex items-center justify-center gap-2">
+            ⚙️ 토크닥터 (TorqueDoctor)
+        </h1>
+        <p class="text-xs text-slate-500 mt-1">고교생 & 메이커를 위한 동역학 감속비/토크 정밀 연산 웹앱</p>
     </div>
 
-    <div class="btn-group">
-        <button class="btn-calc" onclick="calculateAndSave()">동량 산출 & 저장</button>
-        <button class="btn-manual" onclick="toggleModal(true)">사용 방법</button>
+    <!-- 공학용 쾌속 프리셋 (밋밋함 해소 기능 1) -->
+    <div class="mb-5 bg-amber-50 p-3 rounded-xl border border-amber-200">
+        <span class="text-xs font-bold text-amber-800 block mb-2">⚡ 공학용 쾌속 프리셋 불러오기</span>
+        <div class="grid grid-cols-2 sm:grid-cols-4 gap-2">
+            <button onclick="applyPreset('ev')" class="px-2 py-1.5 bg-white border border-amber-300 hover:bg-amber-100 text-amber-900 rounded-lg text-xs font-semibold transition">🚗 전기차 감속기</button>
+            <button onclick="applyPreset('robot')" class="px-2 py-1.5 bg-white border border-amber-300 hover:bg-amber-100 text-amber-900 rounded-lg text-xs font-semibold transition">🤖 로봇 관절암</button>
+            <button onclick="applyPreset('bike')" class="px-2 py-1.5 bg-white border border-amber-300 hover:bg-amber-100 text-amber-900 rounded-lg text-xs font-semibold transition">🚲 자전거 1단</button>
+            <button onclick="applyPreset('drone')" class="px-2 py-1.5 bg-white border border-amber-300 hover:bg-amber-100 text-amber-900 rounded-lg text-xs font-semibold transition">🚁 드론 증속기</button>
+        </div>
     </div>
 
-    <div class="result-box" id="resultBox"></div>
-    <div class="gear-list" id="gearList">데이터 불러오는 중...</div>
+    <!-- 입력 폼 -->
+    <div class="space-y-4">
+        <div>
+            <label for="mechName" class="block text-xs font-bold text-slate-700 mb-1">구동 매커니즘 명칭</label>
+            <input type="text" id="mechName" placeholder="예: 메카넘 휠 전동 감속기" class="w-full p-2.5 bg-slate-50 border border-slate-300 rounded-lg text-sm focus:ring-2 focus:ring-amber-500 focus:bg-white outline-none">
+        </div>
+
+        <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            <div>
+                <label for="driverTeeth" class="block text-xs font-bold text-slate-700 mb-1">
+                    구동 기어 잇수 ($N_1$)
+                    <span class="text-[10px] text-amber-600 font-normal block">💡 모터에 직결되어 동력을 일으키는 기어</span>
+                </label>
+                <input type="number" id="driverTeeth" placeholder="예: 12" class="w-full p-2.5 bg-slate-50 border border-slate-300 rounded-lg text-sm focus:ring-2 focus:ring-amber-500 focus:bg-white outline-none">
+            </div>
+            <div>
+                <label for="drivenTeeth" class="block text-xs font-bold text-slate-700 mb-1">
+                    피동 기어 잇수 ($N_2$)
+                    <span class="text-[10px] text-slate-500 font-normal block">💡 동력을 전달받아 부하를 움직이는 기어</span>
+                </label>
+                <input type="number" id="drivenTeeth" placeholder="예: 48" class="w-full p-2.5 bg-slate-50 border border-slate-300 rounded-lg text-sm focus:ring-2 focus:ring-amber-500 focus:bg-white outline-none">
+            </div>
+        </div>
+
+        <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            <div>
+                <label for="inputTorque" class="block text-xs font-bold text-slate-700 mb-1">입력 토크 ($T_1$, N·m)</label>
+                <input type="number" id="inputTorque" step="0.1" placeholder="예: 2.5" class="w-full p-2.5 bg-slate-50 border border-slate-300 rounded-lg text-sm focus:ring-2 focus:ring-amber-500 focus:bg-white outline-none">
+            </div>
+            <div>
+                <label for="inputRPM" class="block text-xs font-bold text-slate-700 mb-1">입력 회전수 ($RPM_1$)</label>
+                <input type="number" id="inputRPM" placeholder="예: 3000" class="w-full p-2.5 bg-slate-50 border border-slate-300 rounded-lg text-sm focus:ring-2 focus:ring-amber-500 focus:bg-white outline-none">
+            </div>
+        </div>
+
+        <!-- 전동 효율 슬라이더 (밋밋함 해소 기능 2) -->
+        <div class="bg-slate-50 p-3 rounded-xl border border-slate-200">
+            <div class="flex justify-between items-center mb-1">
+                <label for="efficiency" class="text-xs font-bold text-slate-700">전동 기계 효율 ($\eta$)</label>
+                <span id="efficiencyVal" class="text-xs font-black text-amber-600">95% (일반 평기어)</span>
+            </div>
+            <input type="range" id="efficiency" min="50" max="100" value="95" oninput="updateEffLabel(this.value)" class="w-full accent-amber-600 cursor-pointer">
+            <p class="text-[10px] text-slate-400 mt-1">이빨 마찰 및 열 손실을 고려하여 실제 출력 토크를 계산합니다.</p>
+        </div>
+    </div>
+
+    <!-- 버튼 그룹 -->
+    <div class="flex gap-2 mt-5">
+        <button onclick="calculateAndSave()" class="flex-1 bg-amber-600 hover:bg-amber-700 text-white font-bold py-3 rounded-xl shadow-md transition text-sm">
+            ⚙️ 동량 산출 & 저장
+        </button>
+        <button onclick="toggleModal(true)" class="bg-slate-600 hover:bg-slate-700 text-white font-bold px-4 py-3 rounded-xl shadow-md transition text-sm">
+            📖 사용 방법
+        </button>
+    </div>
+
+    <!-- 결과 분석 & 시뮬레이터 박스 -->
+    <div id="resultBox" class="hidden mt-6 bg-amber-50 border-2 border-amber-300 rounded-xl p-4">
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-4 items-center">
+            <!-- 수치 결과 -->
+            <div>
+                <span class="text-xs font-bold text-amber-800 bg-amber-200 px-2 py-0.5 rounded">동역학 산출 결과</span>
+                <ul class="mt-2 space-y-1 text-sm font-semibold text-slate-800">
+                    <li>• 기어 변속비 ($i$): <span id="resRatio" class="text-amber-700 font-black"></span></li>
+                    <li>• 최종 출력 토크 ($T_2$): <span id="resTorque" class="text-amber-700 font-black"></span></li>
+                    <li>• 최종 감속 RPM ($RPM_2$): <span id="resRPM" class="text-amber-700 font-black"></span></li>
+                    <li>• 유효 전달 동력 ($P$): <span id="resPower" class="text-amber-700 font-black"></span></li>
+                </ul>
+            </div>
+            <!-- Interactive SVG Gear Visualizer -->
+            <div class="bg-white p-3 rounded-lg border border-amber-200 flex flex-col items-center">
+                <span class="text-[10px] font-bold text-slate-400 mb-1">기어 회전 시뮬레이션</span>
+                <svg width="210" height="120" viewBox="0 0 210 120" class="overflow-visible">
+                    <!-- Driver Gear (Orange) -->
+                    <g class="gear-driver">
+                        <circle cx="60" cy="60" r="35" fill="#fef3c7" stroke="#d97706" stroke-width="4" stroke-dasharray="8 4"/>
+                        <circle cx="60" cy="60" r="8" fill="#d97706"/>
+                        <line x1="60" y1="25" x2="60" y2="95" stroke="#d97706" stroke-width="2"/>
+                    </g>
+                    <!-- Driven Gear (Blue) -->
+                    <g class="gear-driven">
+                        <circle cx="155" cy="60" r="50" fill="#e0f2fe" stroke="#0284c7" stroke-width="4" stroke-dasharray="10 5"/>
+                        <circle cx="155" cy="60" r="8" fill="#0284c7"/>
+                        <line x1="155" y1="10" x2="155" y2="110" stroke="#0284c7" stroke-width="2"/>
+                    </g>
+                </svg>
+                <div class="flex gap-4 text-[10px] font-bold mt-1">
+                    <span class="text-amber-600">● 구동기어(N1)</span>
+                    <span class="text-sky-600">● 피동기어(N2)</span>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 저장된 구동계 데이터 리스트 (상단 고정 기능 적용) -->
+    <div class="mt-8">
+        <div class="flex justify-between items-center mb-3">
+            <h3 class="text-sm font-bold text-slate-700 flex items-center gap-1">
+                📂 저장된 구동계 데이터 목록
+            </h3>
+            <span class="text-[10px] text-slate-400">📌 고정된 항목은 상단에 유지됩니다</span>
+        </div>
+        <div id="gearList" class="space-y-2">
+            <p class="text-center text-xs text-slate-400 py-4">저장된 데이터가 없습니다.</p>
+        </div>
+    </div>
 </div>
 
-<div class="modal" id="manualModal">
-    <div class="modal-content">
-        <span class="close-btn" onclick="toggleModal(false)">&times;</span>
-        <h3>📖 토크닥터 사용 방법</h3>
-        <p>1. <strong>설치</strong>: 모바일 브라우저 메뉴에서 [홈 화면에 추가]로 PWA 앱을 설치합니다.</p>
-        <p>2. <strong>변속 연산</strong>: 기어 잇수(N1, N2)와 모터 사양(입력 토크, RPM)을 입력하고 [동량 산출]을 누릅니다.</p>
-        <p>3. <strong>기계적 이득 분석</strong>: 기어비(i), 최종 출력 토크, 변속 RPM을 실시간 산출하여 구글 시트에 기록합니다.</p>
-        <p>4. <strong>관리</strong>: 구동계 목록에서 필요 없는 항목을 [삭제]합니다.</p>
+<!-- 사용자 매뉴얼 모달 (5단계 충족 & 구동 기어 용어 상세 풀이) -->
+<div id="manualModal" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm hidden items-center justify-center p-4 z-50">
+    <div class="bg-white rounded-2xl max-w-lg w-full p-6 shadow-2xl border border-slate-100">
+        <div class="flex justify-between items-center pb-3 border-b border-slate-100">
+            <h3 class="font-black text-lg text-amber-600">📖 토크닥터 사용자 매뉴얼</h3>
+            <button onclick="toggleModal(false)" class="text-slate-400 hover:text-slate-600 font-bold text-xl">&times;</button>
+        </div>
+        
+        <div class="modal-body py-4 space-y-4 text-xs text-slate-600 leading-relaxed">
+            <!-- 1. 소개 -->
+            <section>
+                <h4 class="font-bold text-sm text-slate-800 mb-1 text-amber-700">1. 프로그램 소개</h4>
+                <p><strong>토크닥터(TorqueDoctor)</strong>는 기계공학 및 로봇 설계 시 구동 모터의 토크, 회전수(RPM), 기어 잇수를 바탕으로 변속 후 출력되는 토크와 기계적 이득을 정확히 산출해 주는 <strong>공학 보조 PWA 웹앱</strong>입니다.</p>
+            </section>
+
+            <!-- 2. PWA 설치 -->
+            <section>
+                <h4 class="font-bold text-sm text-slate-800 mb-1 text-amber-700">2. 접속 및 설치 방법 (PWA)</h4>
+                <p>• <strong>웹 접속</strong>: 배포된 주소를 모바일/PC 브라우저로 엽니다.</p>
+                <p>• <strong>PWA 설치</strong>: 모바일 브라우저 메뉴의 <code>[홈 화면에 추가]</code> 또는 <code>[앱 설치]</code>를 클릭하면 바탕화면에 설치되어 단독 앱으로 실행됩니다.</p>
+            </section>
+
+            <!-- 3. 화면 요소 & 용어 설명 -->
+            <section>
+                <h4 class="font-bold text-sm text-slate-800 mb-1 text-amber-700">3. 화면 주요 요소 & 용어 설명</h4>
+                <ul class="list-disc pl-4 space-y-1">
+                    <li><strong>구동 기어 ($N_1$, Driver Gear)</strong>: 모터나 엔진 회전축에 직접 연결되어 <u>동력을 처음 발생시키는 주도 기어</u>입니다.</li>
+                    <li><strong>피동 기어 ($N_2$, Driven Gear)</strong>: 구동 기어와 이빨이 맞물려 <u>동력을 전달받아 최종 부하(바퀴, 관절)를 회전시키는 기어</u>입니다.</li>
+                    <li><strong>전동 효율 ($\eta$)</strong>: 기어 이빨 접촉면의 마찰 손실 및 열 손실을 반영하는 실제 기계 효율(50~100%)입니다.</li>
+                    <li><strong>핀(📌) 버튼</strong>: 자주 참고하는 주요 구동계 설계를 목록 최상단에 고정합니다.</li>
+                </ul>
+            </section>
+
+            <!-- 4. 기능별 사용 순서 -->
+            <section>
+                <h4 class="font-bold text-sm text-slate-800 mb-1 text-amber-700">4. 기능별 사용 방법 (3가지 핵심 기능)</h4>
+                <ol class="list-decimal pl-4 space-y-1">
+                    <li><strong>[기능 1] 동역학 연산 & 시뮬레이션</strong>: 스펙 수치를 입력하거나 쾌속 프리셋을 선택 후 <code>[동량 산출 & 저장]</code>을 누르면 토크, RPM, 동력 및 회전 비주얼이 실시간 출력됩니다.</li>
+                    <li><strong>[기능 2] 백엔드 및 DB 자동 저장</strong>: 연산과 동시에 구글 스프레드시트(GAS) 및 LocalStorage에 데이터가 자동 연동 저장됩니다.</li>
+                    <li><strong>[기능 3] 상단 고정(📌) 및 데이터 관리</strong>: 목록 카드 우측의 📌 버튼으로 중요 항목을 고정하고, 필요 없는 항목은 삭제할 수 있습니다.</li>
+                </ol>
+            </section>
+
+            <!-- 5. FAQ -->
+            <section>
+                <h4 class="font-bold text-sm text-slate-800 mb-1 text-amber-700">5. 주의사항 & 자주 묻는 질문 (FAQ)</h4>
+                <p><strong>Q. 기어비가 1보다 크면 어떻게 되나요?</strong><br>A. 감속비가 적용되어 회전수(RPM)는 줄어드는 대신, 토크(힘)가 기어비만큼 크게 증폭됩니다.</p>
+                <p class="mt-1"><strong>Q. 인터넷이 안 되어도 작동하나요?</strong><br>A. 네, PWA 오프라인 저장 기술이 적용되어 인터넷 접속이 끊겨도 연산 및 저장이 가능합니다.</p>
+            </section>
+        </div>
     </div>
 </div>
 
@@ -81,38 +207,75 @@
         }
     });
 
+    // 전동 효율 라벨 업데이트
+    function updateEffLabel(val) {
+        let type = "일반 평기어";
+        if (val < 70) type = "고마찰 웜기어";
+        else if (val < 90) type = "헬리컬 기어";
+        else if (val >= 98) type = "이상적 직결";
+        document.getElementById("efficiencyVal").innerText = `${val}% (${type})`;
+    }
+
+    // 공학용 쾌속 프리셋
+    function applyPreset(type) {
+        const presets = {
+            ev: { name: "전기차 감속기", n1: 15, n2: 120, t1: 15.0, rpm1: 6000, eff: 96 },
+            robot: { name: "로봇 관절 웜기어", n1: 1, n2: 50, t1: 0.5, rpm1: 2000, eff: 65 },
+            bike: { name: "자전거 1단 (업힐)", n1: 22, n2: 34, t1: 40.0, rpm1: 90, eff: 95 },
+            drone: { name: "드론 모터 증속기", n1: 40, n2: 10, t1: 1.2, rpm1: 1200, eff: 92 }
+        };
+        const p = presets[type];
+        if (!p) return;
+        document.getElementById("mechName").value = p.name;
+        document.getElementById("driverTeeth").value = p.n1;
+        document.getElementById("drivenTeeth").value = p.n2;
+        document.getElementById("inputTorque").value = p.t1;
+        document.getElementById("inputRPM").value = p.rpm1;
+        document.getElementById("efficiency").value = p.eff;
+        updateEffLabel(p.eff);
+    }
+
+    // 메인 연산 및 저장
     function calculateAndSave() {
         const mechName = document.getElementById("mechName").value;
         const n1 = parseFloat(document.getElementById("driverTeeth").value);
         const n2 = parseFloat(document.getElementById("drivenTeeth").value);
         const t1 = parseFloat(document.getElementById("inputTorque").value);
         const rpm1 = parseFloat(document.getElementById("inputRPM").value);
+        const eff = parseFloat(document.getElementById("efficiency").value) / 100.0;
 
         if (!mechName || isNaN(n1) || isNaN(n2) || isNaN(t1) || isNaN(rpm1) || n1 <= 0) {
-            alert("모든 수치를 정확히 입력해주세요.");
+            alert("모든 치수와 수치를 정확히 입력해 주세요. (구동 기어 잇수는 0보다 커야 합니다)");
             return;
         }
 
-        // 기어비 i = N2 / N1
         const gearRatio = (n2 / n1).toFixed(2);
-        // 출력 토크 T2 = T1 * (N2 / N1)
-        const outputTorque = (t1 * (n2 / n1)).toFixed(2);
-        // 출력 회전수 RPM2 = RPM1 / (N2 / N1)
+        const outputTorque = (t1 * (n2 / n1) * eff).toFixed(2);
         const outputRPM = Math.round(rpm1 / (n2 / n1));
+        // 동력 P (kW) = (Torque * RPM) / 9550
+        const outputPower = ((outputTorque * outputRPM) / 9550).toFixed(2);
 
-        document.getElementById("resultBox").style.display = "block";
-        document.getElementById("resultBox").innerHTML = 
-            `<strong>[구동 동량 산출 결과]</strong><br>` +
-            `• 기어 변속비: <strong>${gearRatio} : 1</strong><br>` +
-            `• 증폭 출력 토크: <strong>${outputTorque} N·m</strong><br>` +
-            `• 감속 회전수: <strong>${outputRPM} RPM</strong>`;
+        // UI 결과 표시
+        document.getElementById("resultBox").classList.remove("hidden");
+        document.getElementById("resRatio").innerText = `${gearRatio} : 1`;
+        document.getElementById("resTorque").innerText = `${outputTorque} N·m`;
+        document.getElementById("resRPM").innerText = `${outputRPM} RPM`;
+        document.getElementById("resPower").innerText = `${outputPower} kW`;
+
+        // SVG 시뮬레이션 회전 속도 동기화
+        const driverSpeed = Math.max(0.5, 500 / Math.max(rpm1, 100));
+        const drivenSpeed = driverSpeed * (n2 / n1);
+        document.documentElement.style.setProperty('--driver-speed', `${driverSpeed}s`);
+        document.documentElement.style.setProperty('--driven-speed', `${drivenSpeed}s`);
 
         const gearData = {
             id: Date.now(),
             mechName: mechName,
             gearRatio: gearRatio + ":1",
             outputTorque: outputTorque + " N·m",
-            outputRPM: outputRPM + " RPM"
+            outputRPM: outputRPM + " RPM",
+            outputPower: outputPower + " kW",
+            isPinned: false
         };
 
         if (typeof google !== 'undefined' && google.script) {
@@ -120,6 +283,18 @@
         } else {
             let gears = JSON.parse(localStorage.getItem("gears") || "[]");
             gears.push(gearData);
+            localStorage.setItem("gears", JSON.stringify(gears));
+            renderGears(gears);
+        }
+    }
+
+    // 핀(📌) 고정 토글 기능
+    function togglePin(id) {
+        if (typeof google !== 'undefined' && google.script) {
+            // GAS 백엔드 호출시에도 호환
+        } else {
+            let gears = JSON.parse(localStorage.getItem("gears") || "[]");
+            gears = gears.map(g => g.id === id ? { ...g, isPinned: !g.isPinned } : g);
             localStorage.setItem("gears", JSON.stringify(gears));
             renderGears(gears);
         }
@@ -143,25 +318,46 @@
         const list = document.getElementById("gearList");
         list.innerHTML = "";
         if (!gears || gears.length === 0) {
-            list.innerHTML = "<p style='text-align:center;'>저장된 기어 동량 데이터가 없습니다.</p>";
+            list.innerHTML = "<p class='text-center text-xs text-slate-400 py-4'>저장된 구동계 데이터가 없습니다.</p>";
             return;
         }
+
+        // Pinned 항목 최상단 정렬
+        gears.sort((a, b) => (b.isPinned ? 1 : 0) - (a.isPinned ? 1 : 0));
+
         gears.forEach(g => {
             const item = document.createElement("div");
-            item.className = "gear-item";
+            item.className = `p-3 rounded-xl border transition flex justify-between items-center ${
+                g.isPinned ? 'bg-amber-50/80 border-amber-300 shadow-sm' : 'bg-white border-slate-200'
+            }`;
             item.innerHTML = `
                 <div>
-                    <strong>[${g.mechName}] (비율 ${g.gearRatio})</strong><br>
-                    <small>토크: ${g.outputTorque} | 회전수: ${g.outputRPM}</small>
+                    <div class="flex items-center gap-1.5">
+                        ${g.isPinned ? '<span class="text-xs">📌</span>' : ''}
+                        <strong class="text-xs font-bold text-slate-800">${g.mechName}</strong>
+                        <span class="text-[10px] bg-slate-100 text-slate-600 px-1.5 py-0.5 rounded border">비율 ${g.gearRatio}</span>
+                    </div>
+                    <p class="text-[11px] text-slate-500 mt-0.5">
+                        토크: <strong>${g.outputTorque}</strong> | 회전수: <strong>${g.outputRPM}</strong> | 동력: <strong>${g.outputPower || '-'}</strong>
+                    </p>
                 </div>
-                <button class="btn-delete" onclick="deleteGear(${g.id})">삭제</button>
+                <div class="flex items-center gap-1">
+                    <button onclick="togglePin(${g.id})" class="p-1.5 text-xs hover:bg-slate-100 rounded-lg transition" title="상단 고정">
+                        ${g.isPinned ? '📍' : '📌'}
+                    </button>
+                    <button onclick="deleteGear(${g.id})" class="px-2 py-1 bg-red-500 hover:bg-red-600 text-white rounded-lg text-xs font-bold transition">
+                        삭제
+                    </button>
+                </div>
             `;
             list.appendChild(item);
         });
     }
 
     function toggleModal(show) {
-        document.getElementById("manualModal").style.display = show ? "flex" : "none";
+        const modal = document.getElementById("manualModal");
+        modal.classList.toggle("hidden", !show);
+        modal.classList.toggle("flex", show);
     }
 </script>
 </body>
