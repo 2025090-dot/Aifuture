@@ -17,6 +17,11 @@
 </head>
 <body class="bg-slate-100 text-slate-800 min-h-screen p-4 flex justify-center items-start">
 
+<script>
+    // ★ 구글 Apps Script 배포 후 생성된 웹앱 URL을 아래 따옴표 안에 붙여넣으세요.
+    const GAS_WEB_APP_URL = "https://script.google.com/macros/s/AKfycbxhYMAhKlAXKBKjyw0UCke7j95ZwnEqdGZ_n62A6cpFfjosyOGOrlI0GI7QzxFfYEv6/exec";
+</script>
+
 <div class="w-full max-w-2xl bg-white rounded-2xl shadow-xl border border-slate-200 p-6 my-4">
     <!-- 헤더 -->
     <div class="text-center mb-6 border-b pb-4 border-slate-100">
@@ -37,7 +42,7 @@
         </div>
     </div>
 
-    <!-- 입력 폼 (음수 방지 적용) -->
+    <!-- 입력 폼 -->
     <div class="space-y-4">
         <div>
             <label for="mechName" class="block text-xs font-bold text-slate-700 mb-1">구동 매커니즘 명칭</label>
@@ -96,7 +101,6 @@
     <!-- 결과 분석 & 시뮬레이터 박스 -->
     <div id="resultBox" class="hidden mt-6 bg-amber-50 border-2 border-amber-300 rounded-xl p-4">
         <div class="grid grid-cols-1 md:grid-cols-2 gap-4 items-center">
-            <!-- 수치 결과 -->
             <div>
                 <span class="text-xs font-bold text-amber-800 bg-amber-200 px-2 py-0.5 rounded">동역학 산출 결과</span>
                 <ul class="mt-2 space-y-1 text-sm font-semibold text-slate-800">
@@ -106,17 +110,14 @@
                     <li>• 유효 전달 동력 (P): <span id="resPower" class="text-amber-700 font-black"></span></li>
                 </ul>
             </div>
-            <!-- Interactive SVG Gear Visualizer -->
             <div class="bg-white p-3 rounded-lg border border-amber-200 flex flex-col items-center">
                 <span class="text-[10px] font-bold text-slate-400 mb-1">기어 회전 시뮬레이션</span>
                 <svg width="210" height="120" viewBox="0 0 210 120" class="overflow-visible">
-                    <!-- Driver Gear (Orange) -->
                     <g class="gear-driver">
                         <circle cx="60" cy="60" r="35" fill="#fef3c7" stroke="#d97706" stroke-width="4" stroke-dasharray="8 4"/>
                         <circle cx="60" cy="60" r="8" fill="#d97706"/>
                         <line x1="60" y1="25" x2="60" y2="95" stroke="#d97706" stroke-width="2"/>
                     </g>
-                    <!-- Driven Gear (Blue) -->
                     <g class="gear-driven">
                         <circle cx="155" cy="60" r="50" fill="#e0f2fe" stroke="#0284c7" stroke-width="4" stroke-dasharray="10 5"/>
                         <circle cx="155" cy="60" r="8" fill="#0284c7"/>
@@ -154,60 +155,43 @@
         </div>
         
         <div class="modal-body py-4 space-y-4 text-xs text-slate-600 leading-relaxed">
-            <!-- 1. 소개 -->
             <section>
                 <h4 class="font-bold text-sm text-slate-800 mb-1 text-amber-700">1. 프로그램 소개</h4>
                 <p><strong>토크닥터(TorqueDoctor)</strong>는 기계공학 및 로봇 설계 시 구동 모터의 토크, 회전수(RPM), 기어 잇수를 바탕으로 변속 후 출력되는 토크와 기계적 이득을 정확히 산출해 주는 <strong>공학 보조 PWA 웹앱</strong>입니다.</p>
             </section>
-
-            <!-- 2. PWA 설치 -->
             <section>
                 <h4 class="font-bold text-sm text-slate-800 mb-1 text-amber-700">2. 접속 및 설치 방법 (PWA)</h4>
                 <p>• <strong>웹 접속</strong>: 배포된 주소를 모바일/PC 브라우저로 엽니다.</p>
-                <p>• <strong>PWA 설치</strong>: 모바일 브라우저 메뉴의 <code>[홈 화면에 추가]</code> 또는 <code>[앱 설치]</code>를 클릭하면 바탕화면에 설치되어 단독 앱으로 실행됩니다.</p>
+                <p>• <strong>PWA 설치</strong>: 모바일 브라우저 메뉴의 <code>[홈 화면에 추가]</code>를 클릭하면 바탕화면에 단독 앱으로 설치됩니다.</p>
             </section>
-
-            <!-- 3. 화면 요소 & 용어 설명 -->
             <section>
                 <h4 class="font-bold text-sm text-slate-800 mb-1 text-amber-700">3. 화면 주요 요소 & 용어 설명</h4>
                 <ul class="list-disc pl-4 space-y-1">
                     <li><strong>구동 기어 (N1, Driver Gear)</strong>: 모터나 엔진 회전축에 직접 연결되어 동력을 처음 발생시키는 주도 기어입니다.</li>
-                    <li><strong>피동 기어 (N2, Driven Gear)</strong>: 구동 기어와 이빨이 맞물려 동력을 전달받아 최종 부하(바퀴, 관절)를 회전시키는 기어입니다.</li>
-                    <li><strong>전동 효율 (η)</strong>: 기어 이빨 접촉면의 마찰 손실 및 열 손실을 반영하는 실제 기계 효율(50~100%)입니다.</li>
-                    <li><strong>핀(📌) 버튼</strong>: 자주 참고하는 주요 구동계 설계를 목록 최상단에 고정합니다.</li>
+                    <li><strong>피동 기어 (N2, Driven Gear)</strong>: 구동 기어와 이빨이 맞물려 동력을 전달받아 최종 부하를 회전시키는 기어입니다.</li>
+                    <li><strong>전동 효율 (η)</strong>: 접촉 마찰 및 열 손실을 반영하는 기계 효율(50~100%)입니다.</li>
+                    <li><strong>핀(📌) 버튼</strong>: 주요 구동계 설계를 목록 최상단에 고정합니다.</li>
                 </ul>
             </section>
-
-            <!-- 4. 기능별 사용 순서 -->
             <section>
                 <h4 class="font-bold text-sm text-slate-800 mb-1 text-amber-700">4. 기능별 사용 방법 (3가지 핵심 기능)</h4>
                 <ol class="list-decimal pl-4 space-y-1">
-                    <li><strong>[기능 1] 동역학 연산 & 시뮬레이션</strong>: 수치를 입력하거나 쾌속 프리셋을 선택 후 <code>[동량 산출 & 저장]</code>을 누르면 토크, RPM, 동력 및 회전 비주얼이 실시간 출력됩니다.</li>
-                    <li><strong>[기능 2] 백엔드 및 DB 자동 저장</strong>: 연산과 동시에 구글 스프레드시트(GAS) 및 LocalStorage에 데이터가 자동 연동 저장됩니다.</li>
-                    <li><strong>[기능 3] 상단 고정(📌) 및 데이터 관리</strong>: 목록 카드 우측의 📌 버튼으로 중요 항목을 고정하고, 필요 없는 항목은 삭제할 수 있습니다.</li>
+                    <li><strong>[기능 1] 동역학 연산 & 시뮬레이션</strong>: 수치 입력 후 <code>[동량 산출 & 저장]</code> 클릭 시 토크, RPM, 동력 및 시뮬레이션 출력.</li>
+                    <li><strong>[기능 2] 깃허브 - 구글 시트 백엔드 자동 저장</strong>: 깃허브 웹앱에서 계산된 결과가 구글 스프레드시트에 자동 기록됩니다.</li>
+                    <li><strong>[기능 3] 상단 고정(📌) 및 데이터 관리</strong>: 📌 버튼으로 중요한 수치 고정 및 삭제 관리.</li>
                 </ol>
             </section>
-
-            <!-- 5. FAQ -->
             <section>
                 <h4 class="font-bold text-sm text-slate-800 mb-1 text-amber-700">5. 주의사항 & 자주 묻는 질문 (FAQ)</h4>
-                <p><strong>Q. 기어비가 1보다 크면 어떻게 되나요?</strong><br>A. 감속비가 적용되어 회전수(RPM)는 줄어드는 대신, 토크(힘)가 기어비만큼 크게 증폭됩니다.</p>
-                <p class="mt-1"><strong>Q. 음수나 0 이하 수치가 들어가나요?</strong><br>A. 물리적으로 기어 잇수, 회전수, 토크는 0보다 큰 양수여야 하므로 0 이하 및 음수 입력은 마이너스(-) 입력 즉시 차단됩니다.</p>
+                <p><strong>Q. 음수나 0 이하 수치가 들어가나요?</strong><br>A. 물리적으로 기어 잇수, 회전수, 토크는 0보다 작은 값이 들어갈 수 없도록 자동 차단됩니다.</p>
             </section>
         </div>
     </div>
 </div>
 
 <script>
-    document.addEventListener("DOMContentLoaded", function() {
-        if (typeof google !== 'undefined' && google.script) {
-            google.script.run.withSuccessHandler(renderGears).getGears();
-        } else {
-            loadLocalGears();
-        }
-    });
+    document.addEventListener("DOMContentLoaded", loadLocalGears);
 
-    // 음수 입력 즉시 제거 함수
     function preventNegative(input) {
         if (input.value < 0) {
             input.value = "";
@@ -248,13 +232,11 @@
         const rpm1 = parseFloat(document.getElementById("inputRPM").value);
         const eff = parseFloat(document.getElementById("efficiency").value) / 100.0;
 
-        // 1. 빈칸 유효성 검사
         if (!mechName || isNaN(n1) || isNaN(n2) || isNaN(t1) || isNaN(rpm1)) {
             alert("모든 수치 항목을 빠짐없이 올바르게 입력해 주세요.");
             return;
         }
 
-        // 2. 음수 및 0 이하 양수 조건 검증
         if (n1 <= 0 || n2 <= 0 || t1 <= 0 || rpm1 <= 0) {
             alert("음수나 0 이하의 수치는 입력할 수 없습니다. 0보다 큰 양수 값을 입력해 주세요.");
             return;
@@ -277,6 +259,7 @@
         document.documentElement.style.setProperty('--driven-speed', `${drivenSpeed}s`);
 
         const gearData = {
+            action: "add",
             id: Date.now(),
             mechName: mechName,
             gearRatio: gearRatio + ":1",
@@ -286,13 +269,20 @@
             isPinned: false
         };
 
-        if (typeof google !== 'undefined' && google.script) {
-            google.script.run.withSuccessHandler(renderGears).addGear(gearData);
-        } else {
-            let gears = JSON.parse(localStorage.getItem("gears") || "[]");
-            gears.push(gearData);
-            localStorage.setItem("gears", JSON.stringify(gears));
-            renderGears(gears);
+        // 로컬 브라우저 저장
+        let gears = JSON.parse(localStorage.getItem("gears") || "[]");
+        gears.push(gearData);
+        localStorage.setItem("gears", JSON.stringify(gears));
+        renderGears(gears);
+
+        // 구글 스프레드시트 원격 연동 전송
+        if (typeof GAS_WEB_APP_URL !== 'undefined' && GAS_WEB_APP_URL.startsWith("http")) {
+            fetch(GAS_WEB_APP_URL, {
+                method: "POST",
+                mode: "no-cors",
+                headers: { "Content-Type": "text/plain" },
+                body: JSON.stringify(gearData)
+            }).catch(err => console.log("구글 시트 전송 오류:", err));
         }
     }
 
@@ -304,12 +294,17 @@
     }
 
     function deleteGear(id) {
-        if (typeof google !== 'undefined' && google.script) {
-            google.script.run.withSuccessHandler(renderGears).deleteGear(id);
-        } else {
-            let gears = JSON.parse(localStorage.getItem("gears") || "[]").filter(g => g.id !== id);
-            localStorage.setItem("gears", JSON.stringify(gears));
-            renderGears(gears);
+        let gears = JSON.parse(localStorage.getItem("gears") || "[]").filter(g => g.id !== id);
+        localStorage.setItem("gears", JSON.stringify(gears));
+        renderGears(gears);
+
+        if (typeof GAS_WEB_APP_URL !== 'undefined' && GAS_WEB_APP_URL.startsWith("http")) {
+            fetch(GAS_WEB_APP_URL, {
+                method: "POST",
+                mode: "no-cors",
+                headers: { "Content-Type": "text/plain" },
+                body: JSON.stringify({ action: "delete", id: id })
+            }).catch(err => console.log("삭제 전송 오류:", err));
         }
     }
 
